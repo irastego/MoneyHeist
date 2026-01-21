@@ -2,6 +2,8 @@ package com.la_casa_de_papel.heist_assignment.service;
 
 import com.la_casa_de_papel.heist_assignment.dto.MemberRequest;
 import com.la_casa_de_papel.heist_assignment.dto.SkillRequest;
+import com.la_casa_de_papel.heist_assignment.dto.UpdateSkillsRequest;
+import com.la_casa_de_papel.heist_assignment.exception.MemberNotFoundException;
 import com.la_casa_de_papel.heist_assignment.model.Member;
 import com.la_casa_de_papel.heist_assignment.model.Sex;
 import com.la_casa_de_papel.heist_assignment.model.Skill;
@@ -11,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -63,5 +66,59 @@ public class MemberServiceImpl implements MemberService{
 
         Member savedMember = memberRepository.save(member);
         return savedMember.getId();
+    }
+
+    @Override
+    public void updateSkills(Long memberId, UpdateSkillsRequest request) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new MemberNotFoundException("Member not found with id: " + memberId));
+
+        if(request.getSkills().isEmpty() && request.getMainSkill() == null){
+            throw new RuntimeException("Either skills or mainSkill must be provided.");
+        }
+
+        Set<String> requestSkillNames = new HashSet<>();
+
+        for(SkillRequest skillDto : request.getSkills()){
+            String lowerName = skillDto.getName().toLowerCase();
+
+            if(!requestSkillNames.add(lowerName)){
+                throw new RuntimeException("Duplicate skill found in request: " + skillDto.getName());
+            }
+
+            Optional<Skill> existingSkillOpt = member.getSkills().stream()
+                    .filter(s -> s.getName().equalsIgnoreCase(lowerName))
+                    .findFirst();
+
+            if(existingSkillOpt.isPresent()){
+                Skill existingSkill = existingSkillOpt.get();
+
+                if(skillDto.getLevel() != null){
+                    existingSkill.setLevel((skillDto.getLevel()));
+                }
+            } else{
+                Skill newSkill = new Skill();
+                newSkill.setName(lowerName);
+                newSkill.setLevel(skillDto.getLevel() == null ? "*" : skillDto.getLevel());
+
+                newSkill.setMember(member);
+                member.getSkills().add(newSkill);
+            }
+
+            if(request.getMainSkill() != null){
+                String newMainSkill = request.getMainSkill().toLowerCase();
+
+                boolean skillExists = member.getSkills().stream()
+                        .anyMatch(s -> s.getName().equalsIgnoreCase(newMainSkill));
+
+                if(!skillExists){
+                    throw new RuntimeException("Main skill must be one of the member's skills");
+                }
+
+                member.setMainSkill(newMainSkill);
+            }
+            memberRepository.save(member);
+        }
+
     }
 }
