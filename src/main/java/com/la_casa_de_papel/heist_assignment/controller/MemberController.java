@@ -48,4 +48,14 @@ public class MemberController {
                 .header("Content-Location", location.toString())
                 .build();
     }
+
+    @DeleteMapping("/member/{id}/skills/{skillName}")
+    public ResponseEntity<Void> deleteSkill(
+            @PathVariable Long id,
+            @PathVariable String skillName
+    ){
+        memberService.deleteSkill(id, skillName);
+
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -119,6 +119,22 @@ public class MemberServiceImpl implements MemberService{
             }
             memberRepository.save(member);
         }
+    }
 
+    @Override
+
+    public void deleteSkill(Long memberId, String skillName){
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new MemberNotFoundException("Member not found with id: " + memberId));
+
+        Skill skillToRemove = member.getSkills().stream()
+                .filter(s -> s.getName().equalsIgnoreCase(skillName))
+                .findFirst()
+                .orElseThrow(() -> new MemberNotFoundException("Skill not found: " + skillName));
+
+        member.getSkills().remove(skillToRemove);
+        skillToRemove.setMember(null);
+
+        memberRepository.save(member);
     }
 }
