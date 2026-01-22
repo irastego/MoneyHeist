@@ -7,4 +7,6 @@ public interface MemberService {
     Long createMember(MemberRequest request);
 
     void updateSkills(Long memberId, UpdateSkillsRequest request);
+
+    void deleteSkill(Long memberId, String skillName);
 }
