@@ -2,6 +2,9 @@ package com.la_casa_de_papel.heist_assignment.service;
 
 import com.la_casa_de_papel.heist_assignment.dto.HeistRequest;
 import com.la_casa_de_papel.heist_assignment.dto.HeistSkillRequest;
+import com.la_casa_de_papel.heist_assignment.dto.UpdateHeistSkillsRequest;
+import com.la_casa_de_papel.heist_assignment.exception.HeistNotEligibleException;
+import com.la_casa_de_papel.heist_assignment.exception.HeistNotFoundException;
 import com.la_casa_de_papel.heist_assignment.model.Heist;
 import com.la_casa_de_papel.heist_assignment.model.HeistSkill;
 import com.la_casa_de_papel.heist_assignment.model.HeistStatus;
@@ -68,5 +71,45 @@ public class HeistServiceImpl implements HeistService{
         heistRepository.save(heist);
 
         return heist.getId();
+    }
+
+    @Override
+    public void updateHeistSkills(Long heistId, UpdateHeistSkillsRequest request) {
+        Heist heist = heistRepository.findById(heistId)
+                .orElseThrow(() -> new HeistNotFoundException("Heist not found."));
+
+        if(heist.getStatus() == HeistStatus.IN_PROGRESS || heist.getStatus() == HeistStatus.FINISHED){
+            throw new HeistNotEligibleException("Heist has already started.");
+        }
+
+        Set<String> requestDuplicates = new HashSet<>();
+
+        for(HeistSkillRequest skillDto : request.getSkills()) {
+
+            String uniqueKey = skillDto.getName().toLowerCase() + "-" + skillDto.getLevel();
+
+            if (!requestDuplicates.add(uniqueKey)) {
+                throw new RuntimeException("Duplicate skill in request.");
+            }
+
+            java.util.Optional<HeistSkill> existingSkillOpt = heist.getHeistSkills().stream()
+                    .filter(s -> s.getName().equalsIgnoreCase(skillDto.getName())
+                            && s.getLevel().equals(skillDto.getLevel()))
+                    .findFirst();
+
+            if (existingSkillOpt.isPresent()) {
+                existingSkillOpt.get().setMembers(skillDto.getMembers());
+            } else {
+                HeistSkill newSkill = new HeistSkill();
+                newSkill.setName(skillDto.getName().toLowerCase());
+                newSkill.setLevel(skillDto.getLevel());
+                newSkill.setMembers(skillDto.getMembers());
+
+                newSkill.setHeist(heist);
+
+                heist.getHeistSkills().add(newSkill);
+            }
+        }
+        heistRepository.save(heist);
     }
 }
